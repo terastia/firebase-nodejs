@@ -8,40 +8,47 @@ const app = express();
 const firebaseConfig = {
   credential: admin.credential.cert(serviceAccount),
   databaseURL: 'https://lnco-artifacts.firebaseio.com/',
+  projectId: 'lnco-artifacts',
 };
 
 admin.initializeApp(firebaseConfig);
-const database = admin.database();
+const firestore = admin.firestore();
+app.use(express.json());
+  
+app.post('/publish', async (req, res) => {
+try {
+    const db = admin.firestore();
+    const collectionRef = db.collection('artifacts'); // replace with your desired collection name
 
-// Example data to save
-const newData = {
-  key1: 'value1',
-  key2: 'value2',
-};
+    const jsonData = req.body;
+    console.log(jsonData)
 
-// Route to save data to Firebase
-app.get('/saveData', (req, res) => {
-  // Save data to a specific node
-  database.ref('/your/node/path').set(newData)
-    .then(() => {
-      res.send('Data saved successfully');
-    })
-    .catch((error) => {
-      res.status(500).send('Error saving data: ' + error);
-    });
+    // Add a new document to the specified collection
+    const docRef = await collectionRef.add(jsonData);
+
+    console.log('Document written with ID: ', docRef.id);
+
+    return res.status(201).json({ message: 'Data stored successfully', documentId: docRef.id });
+} catch (error) {
+    console.error('Error storing data:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+}
 });
+  
 
-// Route to read data from Firebase
-app.get('/readData', (req, res) => {
-  // Read data once from a specific node
-  database.ref('/your/node/path').once('value')
-    .then((snapshot) => {
-      const readData = snapshot.val();
-      res.json(readData);
-    })
-    .catch((error) => {
-      res.status(500).send('Error reading data: ' + error);
+// Route to read data from Firestore
+app.get('/view', async (req, res) => {
+  try {
+    // Read data from Firestore collection
+    const snapshot = await firestore.collection('artifacts').get();
+    const readData = [];
+    snapshot.forEach((doc) => {
+      readData.push(doc.data());
     });
+    res.json(readData);
+  } catch (error) {
+    res.status(500).send('Error reading data: ' + error.message);
+  }
 });
 
 // Start the server
